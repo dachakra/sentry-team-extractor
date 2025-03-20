@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Sentry Team Member Extractor</title>
+  <meta charset="utf-8">
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      width: 400px;
+      padding: 16px;
+      background-color: #f8f9fa;
+    }
+    h1 {
+      color: #362d59;
+      font-size: 18px;
+      margin-bottom: 16px;
+    }
+    .form-group {
+      margin-bottom: 16px;
+    }
+    label {
+      display: block;
+      margin-bottom: 6px;
+      font-weight: 500;
+      color: #444;
+    }
+    input[type="text"] {
+      width: 100%;
+      padding: 8px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      box-sizing: border-box;
+    }
+    button {
+      background-color: #6c5fc7;
+      color: white;
+      border: none;
+      padding: 10px 16px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-weight: 500;
+    }
+    button:hover {
+      background-color: #574aa8;
+    }
+    .dashboard-button {
+      background-color: #4CAF50;
+      margin-top: 10px;
+      display: block;
+      width: 100%;
+    }
+    .dashboard-button:hover {
+      background-color: #45a049;
+    }
+    #results {
+      margin-top: 20px;
+      border-top: 1px solid #ddd;
+      padding-top: 16px;
+    }
+    .team-section {
+      margin-bottom: 16px;
+      border: 1px solid #e0e0e0;
+      border-radius: 4px;
+      overflow: hidden;
+    }
+    .team-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px;
+      background-color: #f0f0f0;
+      border-bottom: 1px solid #e0e0e0;
+    }
+    .team-name {
+      font-weight: bold;
+      color: #362d59;
+    }
+    .team-copy-btn {
+      background-color: #4caf50;
+      color: white;
+      border: none;
+      padding: 5px 10px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 12px;
+    }
+    .team-copy-btn:hover {
+      background-color: #3e8e41;
+    }
+    .member-list {
+      padding: 10px;
+    }
+    .member-item {
+      margin-bottom: 6px;
+      padding: 6px;
+      background-color: white;
+      border-radius: 4px;
+      border-left: 3px solid #6c5fc7;
+    }
+    .loading {
+      text-align: center;
+      padding: 20px;
+      display: none;
+    }
+    .error {
+      color: #e03e2f;
+      margin-top: 16px;
+      padding: 8px;
+      background-color: #ffeaea;
+      border-radius: 4px;
+      display: none;
+    }
+    .debug-section {
+      margin-top: 20px;
+      border-top: 1px dashed #ccc;
+      padding-top: 10px;
+      font-size: 12px;
+    }
+    .debug-section h3 {
+      font-size: 14px;
+      margin-bottom: 8px;
+    }
+    .debug-option {
+      margin-bottom: 8px;
+    }
+    .debug-button {
+      background-color: #f0f0f0;
+      color: #333;
+      border: 1px solid #ccc;
+      padding: 4px 8px;
+      border-radius: 3px;
+      font-size: 12px;
+      margin-right: 4px;
+    }
+    .debug-button:hover {
+      background-color: #e0e0e0;
+    }
+    .collapsible {
+      cursor: pointer;
+      padding: 5px;
+      background-color: #f0f0f0;
+      border-radius: 3px;
+      margin-bottom: 5px;
+    }
+    .collapsible-content {
+      display: none;
+      padding: 5px;
+      background-color: #f8f8f8;
+      border-radius: 3px;
+    }
+    .summary-section {
+      margin-bottom: 20px;
+      padding: 10px;
+      background-color: #f0f0f0;
+      border-radius: 4px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .toggle-btn {
+      background-color: #6c5fc7;
+      color: white;
+      border: none;
+      padding: 5px 10px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 12px;
+    }
+    .toggle-btn:hover {
+      background-color: #574aa8;
+    }
+    .copy-buttons {
+      display: flex;
+      margin-bottom: 16px;
+    }
+    .copy-btn {
+      background-color: #4caf50;
+      color: white;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 14px;
+      width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .copy-btn:hover {
+      background-color: #3e8e41;
+    }
+    .copy-success {
+      background-color: #dff0d8;
+      color: #3c763d;
+      padding: 8px;
+      margin-bottom: 10px;
+      border-radius: 4px;
+      text-align: center;
+      animation: fadeIn 0.3s ease-in-out;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+    /* Permission filter styles */
+    .filter-section {
+      margin: 16px 0;
+      padding: 10px;
+      background-color: #f5f5f5;
+      border-radius: 4px;
+      display: none;
+    }
+    .filter-title {
+      font-weight: bold;
+      margin-bottom: 8px;
+      color: #362d59;
+    }
+    .permission-filters {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .permission-filter {
+      padding: 5px 10px;
+      background-color: #fff;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 13px;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      user-select: none;
+    }
+    .permission-filter:hover {
+      background-color: #f0f0f0;
+    }
+    .permission-filter.active {
+      background-color: #6c5fc7;
+      color: white;
+      border-color: #574aa8;
+    }
+    .permission-filter .checkbox {
+      display: inline-block;
+      width: 14px;
+      height: 14px;
+      border: 1px solid #ccc;
+      border-radius: 2px;
+      margin-right: 5px;
+      position: relative;
+    }
+    .permission-filter.active .checkbox {
+      border-color: white;
+      background-color: white;
+    }
+    .permission-filter.active .checkbox:after {
+      content: '';
+      position: absolute;
+      left: 4px;
+      top: 1px;
+      width: 4px;
+      height: 8px;
+      border: solid #6c5fc7;
+      border-width: 0 2px 2px 0;
+      transform: rotate(45deg);
+    }
+    .filter-actions {
+      margin-top: 8px;
+      display: flex;
+      gap: 8px;
+    }
+    .filter-action-btn {
+      padding: 4px 8px;
+      font-size: 12px;
+      background-color: #e0e0e0;
+      border: none;
+      border-radius: 3px;
+      cursor: pointer;
+    }
+    .filter-action-btn:hover {
+      background-color: #d0d0d0;
+    }
+    .member-item.filtered {
+      display: none;
+    }
+  </style>
+</head>
+<body>
+  <h1>Sentry Team Member Extractor</h1>
+  
+  <div class="form-group">
+    <label for="org-slug">Organization Slug:</label>
+    <input type="text" id="org-slug" placeholder="e.g., sentry">
+  </div>
+  
+  <div class="form-group">
+    <label for="project-slug">Project Slug:</label>
+    <input type="text" id="project-slug" placeholder="e.g., backend">
+  </div>
+  
+  <button id="extract-btn">Extract Team Members</button>
+  <button id="open-dashboard-btn" class="dashboard-button">Open PPV Tools Dashboard</button>
+  
+  <div id="loading" class="loading">
+    Loading data...
+  </div>
+  
+  <div id="error" class="error"></div>
+  
+  <!-- Add permission filter section -->
+  <div id="filter-section" class="filter-section">
+    <div class="filter-title">Filter by Permission:</div>
+    <div class="permission-filters">
+      <div class="permission-filter" data-permission="billing">
+        <span class="checkbox"></span>Billing
+      </div>
+      <div class="permission-filter" data-permission="member">
+        <span class="checkbox"></span>Member
+      </div>
+      <div class="permission-filter" data-permission="admin">
+        <span class="checkbox"></span>Admin
+      </div>
+      <div class="permission-filter" data-permission="manager">
+        <span class="checkbox"></span>Manager
+      </div>
+      <div class="permission-filter" data-permission="owner">
+        <span class="checkbox"></span>Owner
+      </div>
+    </div>
+    <div class="filter-actions">
+      <button id="select-all-permissions" class="filter-action-btn">Select All</button>
+      <button id="select-none-permissions" class="filter-action-btn">Select None</button>
+    </div>
+  </div>
+  
+  <div id="results"></div>
+  
+  <div id="debug-section" class="debug-section">
+    <div class="collapsible" id="debug-toggle">▶ Debug Options (click to expand)</div>
+    <div class="collapsible-content" id="debug-content">
+      <div class="debug-option">
+        <label>
+          <input type="checkbox" id="debug-mode-toggle" checked> Enable Debug Mode
+        </label>
+      </div>
+      <div class="debug-option">
+        <button class="debug-button" id="clear-console">Clear Console</button>
+        <button class="debug-button" id="show-cookies">Show Cookies</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html> 

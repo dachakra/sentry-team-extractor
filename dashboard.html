@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PPV Tools Dashboard</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+            color: #333;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        h1 {
+            color: #2c3e50;
+            margin-top: 0;
+            text-align: center;
+        }
+        h2 {
+            color: #3498db;
+            margin-top: 0;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        /* Looker iframe styles */
+        .looker-container {
+            width: 100%;
+            height: 800px;
+            margin-top: 20px;
+        }
+        .looker-iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
+            border-radius: 4px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        .looker-info {
+            margin-bottom: 15px;
+            padding: 15px;
+            background-color: #f8f9fa;
+            border-radius: 4px;
+            border-left: 4px solid #3498db;
+        }
+        .back-button {
+            display: inline-block;
+            background-color: #3498db;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            text-decoration: none;
+            margin-top: 20px;
+        }
+        .back-button:hover {
+            background-color: #2980b9;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>PPV Tools Dashboard</h1>
+        
+        <div class="dashboard-content">
+            <h2>Looker Analytics Dashboard</h2>
+            <div class="looker-info">
+                <p>This dashboard displays key metrics and insights from Looker. The data is loaded directly from Looker's servers.</p>
+                <p>You can interact with the embedded dashboard to filter and drill down into the data as needed.</p>
+            </div>
+            <div class="looker-container">
+                <iframe 
+                    class="looker-iframe" 
+                    src="https://sentryio.cloud.looker.com/embed/dashboards/1804?Organization+ID=&Organization+Slug=&Project+ID=not+null&Project+Slug=&CSM+Name=&Invoice+Channel=Touch&PostSE+Name=&AE+Name=Jim+Berry"
+                    allowfullscreen
+                    sandbox="allow-same-origin allow-scripts allow-popups allow-forms"
+                ></iframe>
+            </div>
+            
+            <a href="javascript:window.close();" class="back-button">Close Dashboard</a>
+        </div>
+    </div>
+    
+    <script src="dashboard.js"></script>
+</body>
+</html>
