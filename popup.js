@@ -1,4 +1,14 @@
 document.addEventListener('DOMContentLoaded', function() {
+  // Try to initialize Sentry explicitly if needed
+  if (typeof Sentry === 'undefined' && window.SentryHelpers === undefined) {
+    console.error('Sentry not loaded properly in popup');
+  } else {
+    // Add initial breadcrumb
+    if (window.SentryHelpers) {
+      window.SentryHelpers.addBreadcrumb('Popup opened', 'navigation', 'info');
+    }
+  }
+
   const extractBtn = document.getElementById('extract-btn');
   const openDashboardBtn = document.getElementById('open-dashboard-btn');
   const orgSlugInput = document.getElementById('org-slug');
@@ -201,6 +211,62 @@ document.addEventListener('DOMContentLoaded', function() {
     
     resultsDiv.innerHTML = html;
   });
+
+  // Wrap event handlers with try/catch for Sentry reporting
+  if (extractBtn) {
+    extractBtn.addEventListener('click', function() {
+      try {
+        // Add breadcrumb for button click
+        if (window.SentryHelpers) {
+          window.SentryHelpers.addBreadcrumb('Extract button clicked', 'ui.click');
+        }
+        
+        // Get input values
+        const orgSlug = orgSlugInput.value.trim();
+        const projectSlug = projectSlugInput.value.trim();
+        
+        // Validate inputs
+        if (!orgSlug || !projectSlug) {
+          showError('Please enter both organization and project slugs.');
+          return;
+        }
+        
+        // Continue with your existing logic for extraction
+        // ... existing extraction logic ...
+        
+      } catch (error) {
+        // Capture the error
+        if (window.SentryHelpers) {
+          window.SentryHelpers.captureException(error, {
+            org_slug: orgSlugInput.value,
+            project_slug: projectSlugInput.value
+          });
+        }
+        
+        showError('An error occurred during extraction. Please try again.');
+        console.error('Extraction error:', error);
+      }
+    });
+  }
+
+  // Wrap error handling function with Sentry reporting
+  function showError(message) {
+    if (errorDiv) {
+      errorDiv.textContent = message;
+      errorDiv.style.display = 'block';
+      
+      if (window.SentryHelpers) {
+        window.SentryHelpers.captureMessage(message, 'error', {
+          location: 'popup',
+          function: 'showError'
+        });
+      }
+    }
+    
+    if (loadingDiv) {
+      loadingDiv.style.display = 'none';
+    }
+  }
 
   extractBtn.addEventListener('click', async function() {
     // Clear previous results and errors
@@ -651,9 +717,16 @@ document.addEventListener('DOMContentLoaded', function() {
     }
   }
   
-  function showError(message) {
-    errorDiv.textContent = message;
-    errorDiv.style.display = 'block';
-    loadingDiv.style.display = 'none';
+  // Add Sentry-wrapped functions for API calls
+  function fetchWithErrorHandling(url, options) {
+    return fetch(url, options).catch(error => {
+      if (window.SentryHelpers) {
+        window.SentryHelpers.captureException(error, {
+          url,
+          method: options?.method || 'GET'
+        });
+      }
+      throw error;
+    });
   }
 }); 

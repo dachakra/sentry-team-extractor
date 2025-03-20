@@ -4,11 +4,67 @@
 // Enable debug mode
 const DEBUG = true;
 
+// Service worker specific code
+self.importScripts('sentry-browser.min.js');
+
+// Sentry initialization for background service worker
+const SENTRY_DSN = "https://502e84b55edc7205b249295751427306@o88872.ingest.us.sentry.io/4509012075216896";
+
+// Only initialize in production to avoid noise during development
+const manifest = chrome.runtime.getManifest();
+const isProduction = !manifest.version.includes('dev');
+
+if (typeof Sentry !== 'undefined') {
+  Sentry.init({
+    dsn: SENTRY_DSN,
+    tracesSampleRate: 0.2,
+    environment: isProduction ? 'production' : 'development',
+    enabled: true,
+    release: `sentry-team-extractor@${manifest.version}`,
+    
+    beforeSend(event) {
+      event.tags = {
+        ...event.tags,
+        'extension_version': manifest.version,
+        'browser': 'service-worker',
+        'context': 'background'
+      };
+      return event;
+    }
+  });
+  
+  debugLog('Sentry initialized in background script');
+} else {
+  console.error('Sentry SDK not available in background script');
+}
+
 function debugLog(...args) {
   if (DEBUG) {
     console.log('[BACKGROUND DEBUG]', ...args);
   }
 }
+
+// Helper functions for error reporting in background script
+const SentryHelpers = {
+  captureException: function(error, context = {}) {
+    if (typeof Sentry !== 'undefined') {
+      Sentry.captureException(error, {
+        extra: context
+      });
+    }
+    debugLog('Error captured:', error, context);
+  },
+  
+  captureMessage: function(message, level = 'info', context = {}) {
+    if (typeof Sentry !== 'undefined') {
+      Sentry.captureMessage(message, {
+        level,
+        extra: context
+      });
+    }
+    debugLog(`${level.toUpperCase()} message:`, message, context);
+  }
+};
 
 // Listen for installation
 chrome.runtime.onInstalled.addListener(function() {
@@ -20,6 +76,11 @@ chrome.runtime.onInstalled.addListener(function() {
     title: "Open PPV Tools Dashboard",
     contexts: ["action"]
   });
+  
+  // Log installation event to Sentry
+  if (typeof Sentry !== 'undefined') {
+    Sentry.captureMessage('Extension installed', 'info');
+  }
 });
 
 // Listen for context menu clicks
@@ -29,6 +90,22 @@ chrome.contextMenus.onClicked.addListener((info, tab) => {
       url: chrome.runtime.getURL("dashboard.html")
     });
   }
+});
+
+// Listen for errors
+self.addEventListener('error', function(event) {
+  SentryHelpers.captureException(event.error || new Error(event.message), {
+    filename: event.filename,
+    lineno: event.lineno,
+    colno: event.colno
+  });
+});
+
+// Listen for unhandled rejections
+self.addEventListener('unhandledrejection', function(event) {
+  SentryHelpers.captureException(event.reason || new Error('Unhandled Promise rejection'), {
+    promise: 'unhandled'
+  });
 });
 
 // Listen for messages from the popup and dashboard
