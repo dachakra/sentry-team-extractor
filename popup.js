@@ -171,7 +171,22 @@ document.addEventListener('DOMContentLoaded', function() {
       } else if (noResultsMsg) {
         noResultsMsg.style.display = 'none';
       }
+
+      // Update the team copy button text with the visible members count
+      const teamCopyBtn = section.querySelector('.team-copy-btn');
+      if (teamCopyBtn) {
+        const count = visibleMembers.length;
+        teamCopyBtn.textContent = `Copy ${count} Email${count !== 1 ? 's' : ''}`;
+      }
     });
+
+    // Update the global "Copy All Emails" button with total visible member count
+    const copyAllBtn = document.getElementById('copy-all-emails');
+    if (copyAllBtn) {
+      const allVisibleMembers = document.querySelectorAll('.member-item:not(.filtered)');
+      const totalCount = allVisibleMembers.length;
+      copyAllBtn.textContent = `Copy All Emails (${totalCount})`;
+    }
   }
   
   // Helper function to create the "no results" message with selected permissions
@@ -450,37 +465,26 @@ document.addEventListener('DOMContentLoaded', function() {
       return;
     }
     
-    // Extract unique emails from all teams, respecting the multi-select filters
+    // Extract unique emails from all teams, respecting filters (visible members only)
     const allEmails = new Set();
     
-    if (selectedPermissions.length === 0) {
-      // If no permissions selected, get all emails
-      allTeamsData.forEach(teamData => {
-        teamData.members.forEach(member => {
+    allTeamsData.forEach(teamData => {
+      teamData.members.forEach(member => {
+        // Get member's role/permission
+        let role = (member.role || (member.user && member.user.role) || '').toLowerCase();
+        if (!role) role = 'member'; // Default to member if no role specified
+        
+        // Check if the member should be visible based on current filters
+        const isVisible = selectedPermissions.length === 0 || selectedPermissions.includes(role);
+        
+        if (isVisible) {
           const email = member.email || (member.user && member.user.email);
           if (email) {
             allEmails.add(email);
           }
-        });
+        }
       });
-    } else {
-      // Filter by selected permissions
-      allTeamsData.forEach(teamData => {
-        teamData.members.forEach(member => {
-          // Get member's role/permission
-          let role = (member.role || (member.user && member.user.role) || '').toLowerCase();
-          if (!role) role = 'member'; // Default to member if no role specified
-          
-          // Check if role matches any of the selected filters
-          if (selectedPermissions.includes(role)) {
-            const email = member.email || (member.user && member.user.email);
-            if (email) {
-              allEmails.add(email);
-            }
-          }
-        });
-      });
-    }
+    });
     
     const clipboardText = Array.from(allEmails).join('\n');
     
@@ -512,33 +516,24 @@ document.addEventListener('DOMContentLoaded', function() {
     const teamData = allTeamsData[teamIndex];
     const teamName = teamData.team.name || teamData.team.slug;
     
-    // Extract emails from this specific team, respecting the multi-select filters
+    // Extract emails from this specific team, respecting filters (visible members only)
     const teamEmails = new Set();
     
-    if (selectedPermissions.length === 0) {
-      // If no permissions selected, get all emails for the team
-      teamData.members.forEach(member => {
+    teamData.members.forEach(member => {
+      // Get member's role/permission
+      let role = (member.role || (member.user && member.user.role) || '').toLowerCase();
+      if (!role) role = 'member'; // Default to member if no role specified
+      
+      // Check if the member should be visible based on current filters
+      const isVisible = selectedPermissions.length === 0 || selectedPermissions.includes(role);
+      
+      if (isVisible) {
         const email = member.email || (member.user && member.user.email);
         if (email) {
           teamEmails.add(email);
         }
-      });
-    } else {
-      // Filter by selected permissions for the team
-      teamData.members.forEach(member => {
-        // Get member's role/permission
-        let role = (member.role || (member.user && member.user.role) || '').toLowerCase();
-        if (!role) role = 'member'; // Default to member if no role specified
-        
-        // Check if role matches any of the selected filters
-        if (selectedPermissions.includes(role)) {
-          const email = member.email || (member.user && member.user.email);
-          if (email) {
-            teamEmails.add(email);
-          }
-        }
-      });
-    }
+      }
+    });
     
     const clipboardText = Array.from(teamEmails).join('\n');
     
@@ -590,6 +585,17 @@ document.addEventListener('DOMContentLoaded', function() {
     }, 3000);
   }
   
+  // Helper function to get the total count of members across all teams
+  function getTotalMemberCount(teamMembersResults) {
+    let total = 0;
+    for (const members of teamMembersResults) {
+      if (members && Array.isArray(members)) {
+        total += members.length;
+      }
+    }
+    return total;
+  }
+  
   function toggleTeamsVisibility() {
     const teamSections = document.querySelectorAll('.team-section');
     const toggleButton = document.getElementById('toggle-teams-btn');
@@ -625,7 +631,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // Add copy all emails button
     html += `
       <div class="copy-buttons">
-        <button class="copy-btn" id="copy-all-emails">Copy All Emails to Clipboard</button>
+        <button class="copy-btn" id="copy-all-emails">Copy All Emails (${getTotalMemberCount(teamMembersResults)})</button>
       </div>
     `;
     
