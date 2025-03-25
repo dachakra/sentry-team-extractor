@@ -17,20 +17,11 @@ const isProduction = !manifest.version.includes('dev');
 if (typeof Sentry !== 'undefined') {
   Sentry.init({
     dsn: SENTRY_DSN,
-    tracesSampleRate: 0.2,
-    environment: isProduction ? 'production' : 'development',
+    tracesSampleRate: 1,
+    environment: 'production',
     enabled: true,
     release: `sentry-team-extractor@${manifest.version}`,
-    
-    beforeSend(event) {
-      event.tags = {
-        ...event.tags,
-        'extension_version': manifest.version,
-        'browser': 'service-worker',
-        'context': 'background'
-      };
-      return event;
-    }
+ 
   });
   
   debugLog('Sentry initialized in background script');

@@ -40,6 +40,23 @@ document.addEventListener('DOMContentLoaded', function() {
   // Selected permission filters (array to support multi-select)
   let selectedPermissions = [];
   
+  // Add event listeners to input fields to trigger extract on Enter key
+  orgSlugInput.addEventListener('keydown', function(event) {
+    if (event.key === 'Enter') {
+      event.preventDefault(); // Prevent form submission
+      extractBtn.click(); // Trigger the extract button click
+      debugLog('Enter key pressed in org-slug input, triggering extract');
+    }
+  });
+  
+  projectSlugInput.addEventListener('keydown', function(event) {
+    if (event.key === 'Enter') {
+      event.preventDefault(); // Prevent form submission
+      extractBtn.click(); // Trigger the extract button click
+      debugLog('Enter key pressed in project-slug input, triggering extract');
+    }
+  });
+  
   // Debug logging function - moved up so it's available for all event handlers
   function debugLog(...args) {
     if (debugMode) {
@@ -238,11 +255,14 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Get input values
         const orgSlug = orgSlugInput.value.trim();
-        const projectSlug = projectSlugInput.value.trim();
+        const projectSlugsInput = projectSlugInput.value.trim();
+        
+        // Parse comma-separated project slugs
+        const projectSlugs = projectSlugsInput.split(',').map(slug => slug.trim()).filter(slug => slug !== '');
         
         // Validate inputs
-        if (!orgSlug || !projectSlug) {
-          showError('Please enter both organization and project slugs.');
+        if (!orgSlug || projectSlugs.length === 0) {
+          showError('Please enter both organization and at least one project slug.');
           return;
         }
         
@@ -254,7 +274,7 @@ document.addEventListener('DOMContentLoaded', function() {
         if (window.SentryHelpers) {
           window.SentryHelpers.captureException(error, {
             org_slug: orgSlugInput.value,
-            project_slug: projectSlugInput.value
+            project_slugs: projectSlugInput.value
           });
         }
         
@@ -291,14 +311,18 @@ document.addEventListener('DOMContentLoaded', function() {
     allTeamsData = [];
     
     const orgSlug = orgSlugInput.value.trim();
-    const projectSlug = projectSlugInput.value.trim();
+    let projectSlugsInput = projectSlugInput.value.trim();
     
-    // Store current values for debug functions
+    // Parse project slugs (split by comma and trim each)
+    const projectSlugs = projectSlugsInput.split(',').map(slug => slug.trim()).filter(slug => slug !== '');
+    
+    // Store current org slug for debug functions
     currentOrgSlug = orgSlug;
-    currentProjectSlug = projectSlug;
+    // Store all project slugs as comma-separated for debug functions
+    currentProjectSlug = projectSlugs.join(',');
     
-    if (!orgSlug || !projectSlug) {
-      showError('Please enter both organization and project slugs.');
+    if (!orgSlug || projectSlugs.length === 0) {
+      showError('Please enter both organization and at least one project slug.');
       return;
     }
     
@@ -319,19 +343,48 @@ document.addEventListener('DOMContentLoaded', function() {
       currentCookieHeader = cookieHeader;
       debugLog('Cookie header created (length):', cookieHeader.length);
       
-      // Step 2: Get project details to find associated teams
-      debugLog(`Fetching teams for project: ${orgSlug}/${projectSlug}`);
-      const projectTeams = await getProjectTeams(orgSlug, projectSlug, cookieHeader);
-      debugLog('Project teams response:', projectTeams);
+      // Step 2: For each project slug, get the associated teams
+      debugLog(`Processing ${projectSlugs.length} project(s): ${projectSlugs.join(', ')}`);
       
-      if (!projectTeams || projectTeams.length === 0) {
-        showError(`No teams found for project "${projectSlug}" in organization "${orgSlug}".`);
+      // Create a Map to store unique teams by their slug to avoid duplicates
+      const teamsMap = new Map();
+      const projectTeamsMap = new Map(); // Map to store teams per project
+      
+      // Fetch teams for each project
+      for (const projectSlug of projectSlugs) {
+        try {
+          debugLog(`Fetching teams for project: ${orgSlug}/${projectSlug}`);
+          const projectTeams = await getProjectTeams(orgSlug, projectSlug, cookieHeader);
+          debugLog(`Found ${projectTeams.length} teams for project: ${projectSlug}`);
+          
+          // Store teams for this project
+          projectTeamsMap.set(projectSlug, projectTeams);
+          
+          // Add each team to the unique teams map
+          projectTeams.forEach(team => {
+            if (!teamsMap.has(team.slug)) {
+              teamsMap.set(team.slug, team);
+            }
+          });
+        } catch (error) {
+          debugLog(`Error fetching teams for project ${projectSlug}: ${error.message}`);
+          // Continue with other projects instead of stopping on error
+          continue;
+        }
+      }
+      
+      // Convert the Map to an array of unique teams
+      const uniqueTeams = Array.from(teamsMap.values());
+      debugLog(`Found ${uniqueTeams.length} unique teams across all projects`);
+      
+      if (uniqueTeams.length === 0) {
+        showError(`No teams found for the specified project(s) in organization "${orgSlug}".`);
         return;
       }
       
-      // Step 3: For each team, get the members
-      debugLog(`Fetching members for ${projectTeams.length} teams...`);
-      const teamMembersPromises = projectTeams.map(team => {
+      // Step 3: For each unique team, get the members
+      debugLog(`Fetching members for ${uniqueTeams.length} unique teams...`);
+      const teamMembersPromises = uniqueTeams.map(team => {
         debugLog(`Fetching members for team: ${team.slug}`);
         return getTeamMembers(orgSlug, team.slug, cookieHeader);
       });
@@ -340,15 +393,19 @@ document.addEventListener('DOMContentLoaded', function() {
       debugLog('Team members results:', teamMembersResults);
       
       // Store the team data for clipboard functionality
-      projectTeams.forEach((team, index) => {
+      uniqueTeams.forEach((team, index) => {
         allTeamsData.push({
           team: team,
-          members: teamMembersResults[index] || []
+          members: teamMembersResults[index] || [],
+          // Store which projects this team belongs to
+          projects: Array.from(projectTeamsMap.entries())
+            .filter(([_, teams]) => teams.some(t => t.slug === team.slug))
+            .map(([project, _]) => project)
         });
       });
       
       // Step 4: Display the results
-      displayResults(projectTeams, teamMembersResults);
+      displayResults(uniqueTeams, teamMembersResults, projectTeamsMap, projectSlugs);
       
     } catch (error) {
       showError(`Error: ${error.message}`);
@@ -611,9 +668,9 @@ document.addEventListener('DOMContentLoaded', function() {
     toggleButton.textContent = isHidden ? 'Show All Teams' : 'Hide Teams';
   }
   
-  function displayResults(teams, teamMembersResults) {
+  function displayResults(teams, teamMembersResults, projectTeamsMap, projectSlugs) {
     if (teams.length === 0) {
-      resultsDiv.innerHTML = '<p>No teams found for this project.</p>';
+      resultsDiv.innerHTML = '<p>No teams found for these projects.</p>';
       return;
     }
     
@@ -626,7 +683,17 @@ document.addEventListener('DOMContentLoaded', function() {
       filter.classList.remove('active');
     });
     
-    let html = `<h2>Team Members for Project "${currentProjectSlug}"</h2>`;
+    let html = '';
+    
+    // Show project information header
+    if (projectSlugs.length > 1) {
+      html += `<h2>Team Members for ${projectSlugs.length} Projects</h2>`;
+      html += `<div style="margin-bottom: 20px;">
+        <p>Projects searched: ${projectSlugs.map(slug => `<span style="background: #f0f0f0; padding: 2px 6px; border-radius: 3px; margin: 0 2px;">${slug}</span>`).join(', ')}</p>
+      </div>`;
+    } else {
+      html += `<h2>Team Members for Project "${currentProjectSlug}"</h2>`;
+    }
     
     // Add copy all emails button
     html += `
@@ -639,7 +706,7 @@ document.addEventListener('DOMContentLoaded', function() {
     if (teams.length > 1) {
       html += `
         <div class="summary-section">
-          <p>This project belongs to ${teams.length} teams</p>
+          <p>Found ${teams.length} teams across ${projectSlugs.length} project${projectSlugs.length > 1 ? 's' : ''}</p>
           <button id="toggle-teams-btn" class="toggle-btn" data-hidden="false">Hide Teams</button>
         </div>
       `;
@@ -650,10 +717,24 @@ document.addEventListener('DOMContentLoaded', function() {
       const members = teamMembersResults[index];
       const memberCount = members ? members.length : 0;
       
+      // Find which projects this team belongs to
+      const teamProjects = Array.from(projectTeamsMap.entries())
+        .filter(([_, teams]) => teams.some(t => t.slug === team.slug))
+        .map(([project, _]) => project);
+      
       html += `
         <div class="team-section">
           <div class="team-header">
-            <div class="team-name">${team.name || team.slug}</div>
+            <div class="team-name">
+              ${team.name || team.slug}
+              ${teamProjects.length > 0 ? 
+                `<div style="font-size: 12px; margin-top: 4px; font-weight: normal; color: #555;">
+                  Projects: ${teamProjects.map(project => 
+                    `<span style="background: #eef; padding: 1px 4px; border-radius: 2px; margin-right: 4px;">${project}</span>`
+                  ).join('')}
+                </div>` : ''
+              }
+            </div>
             <button class="team-copy-btn" data-team-index="${index}">Copy ${memberCount} Email${memberCount !== 1 ? 's' : ''}</button>
           </div>
           <div class="member-list">
@@ -697,7 +778,8 @@ document.addEventListener('DOMContentLoaded', function() {
       html += `
         <div style="margin-top: 20px; border-top: 1px dashed #ccc; padding-top: 10px;">
           <h3>Debug Information</h3>
-          <p>Teams found: ${teams.length}</p>
+          <p>Projects: ${projectSlugs.length}</p>
+          <p>Unique teams found: ${teams.length}</p>
           <p>Check the browser console (F12) for detailed logs</p>
         </div>
       `;
