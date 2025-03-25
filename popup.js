@@ -653,9 +653,11 @@ document.addEventListener('DOMContentLoaded', function() {
     return total;
   }
   
-  function toggleTeamsVisibility() {
-    const teamSections = document.querySelectorAll('.team-section');
-    const toggleButton = document.getElementById('toggle-teams-btn');
+  function toggleTeamsVisibility(event) {
+    const toggleButton = event.currentTarget;
+    const projectId = toggleButton.getAttribute('data-project-id');
+    const selector = projectId ? `.team-section[data-project="${projectId}"]` : '.team-section';
+    const teamSections = document.querySelectorAll(selector);
     
     let isHidden = toggleButton.getAttribute('data-hidden') === 'true';
     isHidden = !isHidden; // Toggle the state
@@ -665,7 +667,7 @@ document.addEventListener('DOMContentLoaded', function() {
     });
     
     toggleButton.setAttribute('data-hidden', isHidden.toString());
-    toggleButton.textContent = isHidden ? 'Show All Teams' : 'Hide Teams';
+    toggleButton.textContent = isHidden ? 'Show Teams' : 'Hide Teams';
   }
   
   function displayResults(teams, teamMembersResults, projectTeamsMap, projectSlugs) {
@@ -707,9 +709,25 @@ document.addEventListener('DOMContentLoaded', function() {
       html += `
         <div class="summary-section">
           <p>Found ${teams.length} teams across ${projectSlugs.length} project${projectSlugs.length > 1 ? 's' : ''}</p>
-          <button id="toggle-teams-btn" class="toggle-btn" data-hidden="false">Hide Teams</button>
+          <button id="toggle-teams-btn" class="toggle-btn toggle-teams-btn" data-hidden="false">Hide Teams</button>
         </div>
       `;
+    }
+    
+    // Add project-specific sections if there are multiple projects
+    if (projectSlugs.length > 1) {
+      projectSlugs.forEach(projectSlug => {
+        const projectTeams = Array.from(projectTeamsMap.get(projectSlug) || []);
+        
+        if (projectTeams.length > 0) {
+          html += `
+            <div class="project-results" id="project-results-${projectSlug}">
+              <h3>Project: ${projectSlug} (${projectTeams.length} teams)</h3>
+              <button id="toggle-teams-${projectSlug}" class="btn btn-secondary toggle-teams-btn" data-hidden="false" data-project-id="${projectSlug}">Hide Teams</button>
+            </div>
+          `;
+        }
+      });
     }
     
     // Display each team and its members
@@ -722,8 +740,11 @@ document.addEventListener('DOMContentLoaded', function() {
         .filter(([_, teams]) => teams.some(t => t.slug === team.slug))
         .map(([project, _]) => project);
       
+      // Create data-project attributes for each project this team belongs to
+      const projectDataAttrs = teamProjects.map(project => `data-project="${project}"`).join(' ');
+      
       html += `
-        <div class="team-section">
+        <div class="team-section" ${projectDataAttrs}>
           <div class="team-header">
             <div class="team-name">
               ${team.name || team.slug}
@@ -798,11 +819,10 @@ document.addEventListener('DOMContentLoaded', function() {
       });
     });
     
-    // Add event listener to toggle button if it exists
-    const toggleBtn = document.getElementById('toggle-teams-btn');
-    if (toggleBtn) {
-      toggleBtn.addEventListener('click', toggleTeamsVisibility);
-    }
+    // Add event listeners to all toggle buttons
+    document.querySelectorAll('.toggle-teams-btn').forEach(button => {
+      button.addEventListener('click', toggleTeamsVisibility);
+    });
   }
   
   // Add Sentry-wrapped functions for API calls
@@ -817,4 +837,4 @@ document.addEventListener('DOMContentLoaded', function() {
       throw error;
     });
   }
-}); 
+});  
