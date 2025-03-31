@@ -34,7 +34,7 @@
     "128": "images/icon128.png"
   },
   "content_security_policy": {
-    "extension_pages": "script-src 'self'; object-src 'self'; connect-src 'self' https://*.ingest.us.sentry.io"
+    "extension_pages": "script-src 'self'; object-src 'self'; connect-src 'self' https://*.ingest.us.sentry.io https://sentry.io"
   },
   "web_accessible_resources": [
     {

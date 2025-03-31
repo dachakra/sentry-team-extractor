@@ -447,7 +447,8 @@ document.addEventListener('DOMContentLoaded', function() {
         'Content-Type': 'application/json',
         'Cookie': cookieHeader
       },
-      credentials: 'include'
+      credentials: 'same-origin',
+      mode: 'cors'
     });
     
     debugLog('Project teams response status:', response.status);
@@ -479,7 +480,8 @@ document.addEventListener('DOMContentLoaded', function() {
         'Content-Type': 'application/json',
         'Cookie': cookieHeader
       },
-      credentials: 'include'
+      credentials: 'same-origin',
+      mode: 'cors'
     });
     
     debugLog(`Team members response status:`, response.status);
